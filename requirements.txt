@@ -1,0 +1,26 @@
+# Core ML
+pandas==2.2.0
+numpy==1.26.4
+scikit-learn==1.4.0
+xgboost==2.0.3
+imbalanced-learn==0.12.0
+
+# Experiment Tracking
+mlflow==2.10.0
+dvc==3.40.0
+
+# API
+fastapi==0.109.0
+uvicorn==0.27.0
+pydantic==2.6.0
+
+# Monitoring
+evidently==0.4.16
+
+# Testing
+pytest==8.0.0
+httpx==0.26.0
+
+# Utilities
+python-dotenv==1.0.0
+loguru==0.7.2
