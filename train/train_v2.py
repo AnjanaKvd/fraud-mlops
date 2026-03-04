@@ -25,20 +25,20 @@ import pathlib
 import matplotlib  # noqa: E402 — must set backend before pyplot
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # noqa: E402
 
-import numpy as np
-import pandas as pd
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
 
-import mlflow
-import mlflow.xgboost
-from mlflow import MlflowClient
-from mlflow.models.signature import infer_signature
+import mlflow  # noqa: E402
+import mlflow.xgboost  # noqa: E402
+from mlflow import MlflowClient  # noqa: E402
+from mlflow.models.signature import infer_signature  # noqa: E402
 
-from xgboost import XGBClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (
+from xgboost import XGBClassifier  # noqa: E402
+from sklearn.model_selection import train_test_split  # noqa: E402
+from sklearn.preprocessing import StandardScaler  # noqa: E402
+from sklearn.metrics import (  # noqa: E402
     roc_auc_score,
     average_precision_score,
     f1_score,

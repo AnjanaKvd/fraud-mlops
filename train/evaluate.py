@@ -53,18 +53,18 @@ operating threshold for business reporting.**
 
 import pathlib
 
-import matplotlib  # noqa: E402 — must set backend before pyplot
+import matplotlib
 
-matplotlib.use("Agg")  # headless — no display needed
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import seaborn as sns
+matplotlib.use("Agg")  # must be called before pyplot is imported (headless CI)
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import seaborn as sns  # noqa: E402
 
-import mlflow
-import mlflow.pyfunc
-from mlflow import MlflowClient
-from sklearn.metrics import (
+import mlflow  # noqa: E402
+import mlflow.pyfunc  # noqa: E402
+from mlflow import MlflowClient  # noqa: E402
+from sklearn.metrics import (  # noqa: E402
     roc_auc_score,
     average_precision_score,
     f1_score,
