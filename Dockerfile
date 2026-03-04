@@ -28,10 +28,12 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # =============================================================================
 FROM python:3.11-slim AS runtime
 
-# --- Environment variables ---------------------------------------------------
-# MLFLOW_TRACKING_URI: where MLflow logs experiments / loads registered models.
+# MLFLOW_TRACKING_URI: default points at the SQLite DB mount; the entrypoint
+# script will override this at runtime with a patched copy of the DB.
+# MLFLOW_DB_PATH:      read by entrypoint.sh to locate the mounted SQLite file.
 # PORT:               which port uvicorn listens on (overridable at runtime).
-ENV MLFLOW_TRACKING_URI=sqlite:////data/mlruns.db \
+ENV MLFLOW_TRACKING_URI=sqlite:////app/mlruns.db \
+    MLFLOW_DB_PATH=/app/mlruns.db \
     PORT=8000 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -57,11 +59,17 @@ WORKDIR /app
 COPY app/ ./app/
 
 # ---------------------------------------------------------------------------
-# Volumes for runtime databases
-# mlruns.db and predictions.db are mounted at runtime; do NOT bake data in.
+# Volumes for runtime data
+# mlruns.db  — SQLite tracking store, mounted as a single file
+# /mlruns    — MLflow artifact directory (model files, plots, etc.)
 # The host paths are controlled via docker-compose.yml or `-v` flags.
 # ---------------------------------------------------------------------------
-VOLUME ["/data"]
+VOLUME ["/mlruns"]
+
+# Copy entrypoint script and make it executable (must be done as root,
+# before we switch to the non-root user).
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Ensure the non-root user owns the app directory
 RUN chown -R appuser:appgroup /app
@@ -73,8 +81,8 @@ USER appuser
 EXPOSE 8000
 
 # ---------------------------------------------------------------------------
-# Startup command
-# Uses the PORT env variable so the port is configurable without rebuilding.
-# app.main:app  →  the `app` FastAPI instance inside app/main.py
+# Entrypoint — patches Windows artifact URIs in mlruns.db, then starts uvicorn.
+# Using ENTRYPOINT (not CMD) ensures the patch step always runs on container
+# start, even if the operator passes extra arguments.
 # ---------------------------------------------------------------------------
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+ENTRYPOINT ["/entrypoint.sh"]

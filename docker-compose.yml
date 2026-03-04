@@ -18,18 +18,27 @@ services:
     # you prefer to set them explicitly below.
     environment:
       - PORT=8000
-      - MLFLOW_TRACKING_URI=sqlite:////data/mlruns.db
+      # The entrypoint.sh script will copy this DB to /tmp, patch the Windows
+      # artifact URIs inside it, and export a new MLFLOW_TRACKING_URI at runtime.
+      - MLFLOW_TRACKING_URI=sqlite:////app/mlruns.db
+      - MLFLOW_DB_PATH=/app/mlruns.db
 
     ports:
       # Map host port 8000 → container port 8000
       - "8000:8000"
 
     volumes:
-      # Mount the SQLite databases from the host so data persists across
-      # container restarts and is NOT baked into the image.
-      # Format: <host_path>:<container_path>
-      - ./mlruns.db:/data/mlruns.db
-      - ./predictions.db:/data/predictions.db
+      # mlruns.db — MLflow SQLite tracking DB (contains the Model Registry).
+      # Mounted read-only; entrypoint copies it to /tmp before patching.
+      - ./mlruns.db:/app/mlruns.db:ro
+
+      # mlruns/ — artifact store (model weights, metrics, artefacts).
+      # entrypoint.sh patches URIs in the DB to resolve here.
+      - ./mlruns:/mlruns:ro
+
+      # predictions.db — inference log; must be writable.
+      - ./predictions.db:/app/predictions.db
+
 
     # Restart the container automatically unless explicitly stopped
     restart: unless-stopped

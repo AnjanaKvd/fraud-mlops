@@ -20,6 +20,7 @@ evidently==0.4.16
 # Testing
 pytest==8.0.0
 httpx==0.26.0
+pytest-asyncio==0.23.5
 
 # Utilities
 python-dotenv==1.0.0
