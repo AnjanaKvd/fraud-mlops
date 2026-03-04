@@ -139,3 +139,10 @@ desktop.ini
 *.orig
 .cache/
 tmp/
+
+# Ignore actual data
+data/**
+
+# BUT keep DVC metadata
+!data/**/*.dvc
+!.dvc/
