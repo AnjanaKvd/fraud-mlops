@@ -20,15 +20,15 @@ Run AFTER train.py so that version 1 already exists in the registry.
 Author: Anjana Kavidu
 """
 
-import os
 import pathlib
 
-import pandas as pd
-import numpy as np
-import matplotlib
+import matplotlib  # noqa: E402 — must set backend before pyplot
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+import numpy as np
+import pandas as pd
 
 import mlflow
 import mlflow.xgboost

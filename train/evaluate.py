@@ -51,20 +51,19 @@ operating threshold for business reporting.**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-import os
 import pathlib
-import pandas as pd
-import numpy as np
-import matplotlib
+
+import matplotlib  # noqa: E402 — must set backend before pyplot
 
 matplotlib.use("Agg")  # headless — no display needed
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
 
 import mlflow
 import mlflow.pyfunc
 from mlflow import MlflowClient
-
 from sklearn.metrics import (
     roc_auc_score,
     average_precision_score,
