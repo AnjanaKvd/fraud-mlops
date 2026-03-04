@@ -122,7 +122,8 @@ jobs:
         # concatenate both outputs and produce "000000" instead of "000".
         run: |
           HEALTH_URL="${{ secrets.RENDER_APP_URL }}/health"
-          echo "Polling $HEALTH_URL …"
+          echo "Waiting 90s for Render cold start..."
+          sleep 90
 
           MAX_ATTEMPTS=20
           SLEEP_SECONDS=30
@@ -145,5 +146,5 @@ jobs:
             sleep "$SLEEP_SECONDS"
           done
 
-          echo "::error::Deployment verification failed — /health did not return 200 after $((MAX_ATTEMPTS * SLEEP_SECONDS))s."
+          echo "::error::Deployment verification failed."
           exit 1
