@@ -110,12 +110,46 @@ def _fetch_latest_production_version() -> str:
     return latest.version
 
 
+def _resolve_local_source(source: str) -> str:
+    """
+    Convert a model_version.source URI to a Linux-safe local path.
+
+    MLflow stores artifact URIs as they were on the training host, e.g.
+    ``file:///F:/Github/fraud-mlops/mlruns/1/<run_id>/artifacts/model`` on
+    Windows. Inside a Linux container those Windows-rooted paths are invalid.
+
+    We patch them the same way the entrypoint patches the SQLite DB — replacing
+    the Windows prefix with the container-side ``/mlruns`` mount point — then
+    strip the ``file://`` scheme so MLflow gets a plain local path.
+
+    If the source is already a Linux path (e.g. already patched in the DB),
+    it is returned unchanged.
+    """
+    import re
+    from urllib.parse import urlparse
+
+    # Replace "file:///X:/.../<anything>/mlruns" → "file:///mlruns"
+    source = re.sub(r'file:///[A-Za-z]:/[^"]*?/mlruns', "file:///mlruns", source)
+    # Replace bare "/X:/.../<anything>/mlruns" → "/mlruns"
+    source = re.sub(r'/[A-Za-z]:/[^"]*?/mlruns', "/mlruns", source)
+
+    # Strip the file:// scheme to get a plain local path for load_model()
+    parsed = urlparse(source)
+    if parsed.scheme == "file":
+        return parsed.path  # e.g. "/mlruns/1/<run_id>/artifacts/model"
+    return source
+
+
 def _load_model() -> mlflow.pyfunc.PyFuncModel:
     """
     Load the Production model from the MLflow Model Registry.
 
-    The model URI format ``models:/<name>/<stage>`` is resolved by MLflow to
-    the artifact path of the latest Production version automatically.
+    Rather than using the ``models:/Name/Stage`` URI (which routes through
+    ``models_artifact_repo.py`` and re-resolves the raw ``model_versions.source``
+    stored in the DB — a Windows path on this host), we manually look up the
+    winning version's source, patch any Windows-style path to the container-side
+    ``/mlruns`` mount, and call ``load_model`` with the direct local filesystem
+    path. This completely bypasses the problematic resolution chain.
 
     Returns
     -------
@@ -126,26 +160,46 @@ def _load_model() -> mlflow.pyfunc.PyFuncModel:
     Raises
     ------
     RuntimeError
-        Propagated from _fetch_latest_production_version() if no Production
-        model is registered, or from mlflow.pyfunc.load_model() on any
-        loading failure.
+        If no Production model is found, or if loading from the resolved path
+        fails.
     """
-    model_uri = f"models:/{MODEL_NAME}/{MODEL_STAGE}"
-    logger.info("Loading model from URI: %s", model_uri)
+    client = mlflow.tracking.MlflowClient()
+
+    # Find the winning Production version (same logic as _fetch_latest_production_version)
+    filter_str = f"name='{MODEL_NAME}'"
+    all_versions = client.search_model_versions(filter_str)
+    versions = [v for v in all_versions if v.current_stage == MODEL_STAGE]
+
+    if not versions:
+        raise RuntimeError(
+            f"No '{MODEL_STAGE}' version found for model '{MODEL_NAME}' "
+            f"in the MLflow Model Registry at '{MLFLOW_TRACKING_URI}'."
+        )
+
+    best = max(versions, key=lambda v: int(v.version))
+    raw_source = (
+        best.source
+    )  # e.g. "file:///F:/Github/.../mlruns/1/<rid>/artifacts/model"
+    local_path = _resolve_local_source(raw_source)
+
+    logger.info(
+        "Loading model version '%s' (run_id=%s) from resolved path: %s",
+        best.version,
+        best.run_id,
+        local_path,
+    )
 
     try:
-        loaded = mlflow.pyfunc.load_model(model_uri)
-    except mlflow.exceptions.MlflowException as exc:
+        loaded = mlflow.pyfunc.load_model(local_path)
+    except Exception as exc:
         raise RuntimeError(
-            f"Failed to load model from '{model_uri}'.\n"
-            f"Ensure that:\n"
-            f"  • The training pipeline has completed successfully.\n"
-            f"  • A model version has been promoted to '{MODEL_STAGE}'.\n"
-            f"  • MLFLOW_TRACKING_URI ('{MLFLOW_TRACKING_URI}') is correct.\n"
+            f"Failed to load model from resolved path '{local_path}'.\n"
+            f"  Raw source in registry: {raw_source}\n"
+            f"  Ensure the mlruns/ directory is mounted at /mlruns inside the container.\n"
             f"Original error: {exc}"
         ) from exc
 
-    logger.info("Model loaded successfully from '%s'.", model_uri)
+    logger.info("Model loaded successfully from '%s'.", local_path)
     return loaded
 
 
