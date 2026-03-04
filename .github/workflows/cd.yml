@@ -1,0 +1,145 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# CD Workflow — Fraud MLOps (FastAPI + MLflow)
+#
+# Badge URL (add to your README.md):
+#   [![CD](https://github.com/AnjanaKvd/fraud-mlops/actions/workflows/cd.yml/badge.svg)](https://github.com/AnjanaKvd/fraud-mlops/actions/workflows/cd.yml)
+#
+# Required GitHub Secrets (Settings → Secrets and variables → Actions → New repository secret):
+#   DOCKER_USERNAME       – Your Docker Hub username
+#   DOCKER_PASSWORD       – A Docker Hub Access Token (NOT your login password)
+#   RENDER_DEPLOY_HOOK_URL – The Deploy Hook URL from Render (see step 5 notes)
+#   RENDER_APP_URL        – The public base URL of your Render service, e.g. https://fraud-mlops.onrender.com
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: CD
+
+on:
+  # Trigger only when the CI workflow completes successfully on the main branch.
+  # This guarantees lint + tests have passed before any deployment happens.
+  workflow_run:
+    workflows:
+      - CI               # must match the `name:` field in ci.yml exactly
+    branches:
+      - main
+    types:
+      - completed        # fires when CI finishes (succeeded OR failed)
+
+# Cancel any in-progress CD run for the same branch when a new push arrives,
+# so we never deploy a stale image on top of a newer one.
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build → Push → Deploy
+    runs-on: ubuntu-latest
+
+    # Only proceed when the triggering CI run actually succeeded.
+    # Without this guard, a failed CI would still kick off deployment.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      # ── 1. Checkout code ───────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        # We need the source code to build the Docker image.
+        # ref: the commit SHA that triggered the CI run so we build the exact same code.
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # ── 2. Set up Docker Buildx ───────────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        # Buildx is the modern Docker build driver. It supports:
+        #   • Multi-platform builds (linux/amd64, linux/arm64)
+        #   • Build cache export/import (speeds up subsequent builds significantly)
+        #   • BuildKit features like inline cache and secret mounts
+
+      # ── 3. Log in to Docker Hub ───────────────────────────────────────────────
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          # DOCKER_USERNAME: your Docker Hub account name (e.g. "anjanakvd")
+          # DOCKER_PASSWORD: a Docker Hub Access Token — NOT your account password.
+          #   Create one at: https://hub.docker.com/settings/security → New Access Token
+          #   Scope needed: "Read, Write, Delete" (or just "Read & Write")
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # ── 4. Build and push Docker image ────────────────────────────────────────
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          # Two tags are pushed on every deployment:
+          #   latest        – always points to the most recently deployed build
+          #   <git-sha>     – immutable tag for full traceability; lets you roll back
+          #                   to any previous exact build with a single tag reference
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/fraud-mlops:latest
+            ${{ secrets.DOCKER_USERNAME }}/fraud-mlops:${{ github.event.workflow_run.head_sha }}
+          # Reuse the build cache from the previous run stored in the GitHub Actions
+          # cache — avoids rebuilding unchanged layers (e.g. dependency installation).
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── 5. Trigger Render redeploy ─────────────────────────────────────────────
+      - name: Trigger Render deploy hook
+        # RENDER_DEPLOY_HOOK_URL: a one-time URL that tells Render to pull the
+        # latest image and restart the service.
+        # How to get it:
+        #   1. Go to your Render dashboard → select your service
+        #   2. Settings tab → "Deploy Hook" section → copy the URL
+        #   The URL looks like: https://api.render.com/deploy/srv-XXXXXXXX?key=YYYYYYYY
+        run: |
+          echo "Triggering Render deploy hook…"
+          RESPONSE=$(curl --silent --show-error --fail \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --request POST \
+            "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          echo "Render API responded with HTTP $RESPONSE"
+          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "201" ]; then
+            echo "::error::Render deploy hook returned unexpected status $RESPONSE"
+            exit 1
+          fi
+
+      # ── 6. Wait and verify deployment ─────────────────────────────────────────
+      - name: Wait for Render deployment and verify /health
+        # RENDER_APP_URL: the public base URL of your Render web service.
+        # How to find it:
+        #   Render dashboard → your service → the URL shown at the top (e.g. https://fraud-mlops.onrender.com)
+        #   Add it as a secret WITHOUT a trailing slash.
+        #
+        # Strategy: poll /health every 15 s for up to 5 minutes (20 attempts).
+        # Render free-tier deployments typically take 1–3 minutes.
+        # The loop exits as soon as the app returns HTTP 200.
+        run: |
+          HEALTH_URL="${{ secrets.RENDER_APP_URL }}/health"
+          echo "Polling $HEALTH_URL …"
+
+          MAX_ATTEMPTS=20
+          SLEEP_SECONDS=15
+          attempt=1
+
+          until [ "$attempt" -gt "$MAX_ATTEMPTS" ]; do
+            HTTP_CODE=$(curl --silent --output /dev/null \
+              --write-out "%{http_code}" \
+              --max-time 10 \
+              "$HEALTH_URL" || echo "000")
+
+            echo "  Attempt $attempt/$MAX_ATTEMPTS → HTTP $HTTP_CODE"
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "✅ Deployment verified — /health returned 200."
+              exit 0
+            fi
+
+            attempt=$((attempt + 1))
+            sleep "$SLEEP_SECONDS"
+          done
+
+          echo "::error::Deployment verification failed — /health did not return 200 after $((MAX_ATTEMPTS * SLEEP_SECONDS))s."
+          exit 1
