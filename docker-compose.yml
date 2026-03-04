@@ -1,0 +1,44 @@
+services:
+  # ---------------------------------------------------------------------------
+  # fraud-api: FastAPI fraud detection service
+  # ---------------------------------------------------------------------------
+  fraud-api:
+    build:
+      context: .          # Build from the repo root (where the Dockerfile lives)
+      dockerfile: Dockerfile
+
+    container_name: fraud-api
+
+    # Load all environment variables from the .env file.
+    # Create a .env file based on .env.example before running.
+    env_file:
+      - .env
+
+    # These can be overridden here; values in .env take precedence unless
+    # you prefer to set them explicitly below.
+    environment:
+      - PORT=8000
+      - MLFLOW_TRACKING_URI=sqlite:////data/mlruns.db
+
+    ports:
+      # Map host port 8000 → container port 8000
+      - "8000:8000"
+
+    volumes:
+      # Mount the SQLite databases from the host so data persists across
+      # container restarts and is NOT baked into the image.
+      # Format: <host_path>:<container_path>
+      - ./mlruns.db:/data/mlruns.db
+      - ./predictions.db:/data/predictions.db
+
+    # Restart the container automatically unless explicitly stopped
+    restart: unless-stopped
+
+    # Basic health-check: poll the /health endpoint every 30 s
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
