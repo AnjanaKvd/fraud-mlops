@@ -101,7 +101,7 @@ jobs:
             --request POST \
             "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
           echo "Render API responded with HTTP $RESPONSE"
-          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "201" ]; then
+          if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "201" ] && [ "$RESPONSE" != "202" ]; then
             echo "::error::Render deploy hook returned unexpected status $RESPONSE"
             exit 1
           fi
