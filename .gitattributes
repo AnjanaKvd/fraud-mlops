@@ -1,0 +1,35 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# .gitattributes — enforce consistent line endings across platforms
+#
+# On Windows, git's core.autocrlf can silently convert LF → CRLF on checkout,
+# which breaks shell scripts and Docker entrypoints when they're run on Linux.
+# This file tells git to ALWAYS keep these files as LF, regardless of the host OS.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Default: normalise all text files to LF in the repo
+* text=auto eol=lf
+
+# Shell scripts MUST be LF — a CRLF shebang causes "exec format error" on Linux
+*.sh text eol=lf
+
+# Python files — LF to be safe (especially heredocs embedded in shell scripts)
+*.py text eol=lf
+
+# Docker / CI config
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+.env text eol=lf
+.env.example text eol=lf
+
+# Windows-native files that genuinely need CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files — never touch line endings
+*.whl binary
+*.db  binary
+*.pkl binary
+*.png binary
+*.jpg binary
+*.pdf binary
