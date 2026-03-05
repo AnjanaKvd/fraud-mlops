@@ -125,7 +125,7 @@ jobs:
           echo "Waiting 90s for Render cold start..."
           sleep 300
 
-          MAX_ATTEMPTS=20
+          MAX_ATTEMPTS=10
           SLEEP_SECONDS=30
           attempt=1
 
