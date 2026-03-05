@@ -54,7 +54,10 @@ Pipfile.lock
 # ==============================================================================
 # MLflow
 # ==============================================================================
-mlruns/
+# mlruns/ and mlruns.db are intentionally tracked so the trained model and
+# registry metadata are bundled into the Docker image for cloud deploys.
+# If you do NOT want to commit model artifacts, add them back here and instead
+# set up a remote artifact store (S3, GCS, etc.) for Render.
 mlartifacts/
 mlflow.db
 

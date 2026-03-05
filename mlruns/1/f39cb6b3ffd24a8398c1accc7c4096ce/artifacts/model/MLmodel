@@ -1,0 +1,44 @@
+artifact_path: model
+flavors:
+  python_function:
+    data: model.xgb
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.xgboost
+    python_version: 3.11.14
+  xgboost:
+    code: null
+    data: model.xgb
+    model_class: xgboost.sklearn.XGBClassifier
+    model_format: xgb
+    xgb_version: 2.0.3
+mlflow_version: 2.10.0
+model_size_bytes: 452108
+model_uuid: 00a0d3d7d7454ad2aa7b3ad1a5bc611f
+run_id: f39cb6b3ffd24a8398c1accc7c4096ce
+signature:
+  inputs: '[{"type": "double", "name": "V1", "required": true}, {"type": "double",
+    "name": "V2", "required": true}, {"type": "double", "name": "V3", "required":
+    true}, {"type": "double", "name": "V4", "required": true}, {"type": "double",
+    "name": "V5", "required": true}, {"type": "double", "name": "V6", "required":
+    true}, {"type": "double", "name": "V7", "required": true}, {"type": "double",
+    "name": "V8", "required": true}, {"type": "double", "name": "V9", "required":
+    true}, {"type": "double", "name": "V10", "required": true}, {"type": "double",
+    "name": "V11", "required": true}, {"type": "double", "name": "V12", "required":
+    true}, {"type": "double", "name": "V13", "required": true}, {"type": "double",
+    "name": "V14", "required": true}, {"type": "double", "name": "V15", "required":
+    true}, {"type": "double", "name": "V16", "required": true}, {"type": "double",
+    "name": "V17", "required": true}, {"type": "double", "name": "V18", "required":
+    true}, {"type": "double", "name": "V19", "required": true}, {"type": "double",
+    "name": "V20", "required": true}, {"type": "double", "name": "V21", "required":
+    true}, {"type": "double", "name": "V22", "required": true}, {"type": "double",
+    "name": "V23", "required": true}, {"type": "double", "name": "V24", "required":
+    true}, {"type": "double", "name": "V25", "required": true}, {"type": "double",
+    "name": "V26", "required": true}, {"type": "double", "name": "V27", "required":
+    true}, {"type": "double", "name": "V28", "required": true}, {"type": "double",
+    "name": "Amount", "required": true}, {"type": "double", "name": "amount_log",
+    "required": true}, {"type": "double", "name": "amount_zscore", "required": true}]'
+  outputs: '[{"type": "tensor", "tensor-spec": {"dtype": "int32", "shape": [-1]}}]'
+  params: null
+utc_time_created: '2026-03-04 04:06:28.118845'
