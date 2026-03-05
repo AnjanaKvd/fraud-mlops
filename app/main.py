@@ -67,12 +67,10 @@ async def lifespan(app: FastAPI):  # noqa: ANN001
       • The model is guaranteed to be in the cache for every request.
     """
     logger.info("=== Fraud Detection API starting up ===")
-    try:
-        load_model_on_startup()
-    except RuntimeError as exc:
-        # Re-raise so Uvicorn/Gunicorn surfaces the error and exits non-zero.
-        logger.critical("Model failed to load on startup: %s", exc)
-        raise
+    # Non-fatal: if no Production model exists (e.g. fresh Render deploy
+    # before training has run), the server starts and returns 503 on /predict.
+    # /health will report status='no_model' so monitoring is aware.
+    load_model_on_startup()
 
     logger.info("=== Startup complete — serving requests ===")
     yield
@@ -154,30 +152,33 @@ async def health() -> dict[str, Any]:
     """
     Readiness check that verifies the model is loaded and reports runtime stats.
 
-    Returns
-    -------
-    dict
-        ``status``          — "ready" when the model is in memory.
-        ``model_version``   — MLflow version of the loaded model.
-        ``uptime_seconds``  — elapsed seconds since the server started.
-        ``total_predictions``— cumulative count across all /predict calls
-                               (resets on server restart; capped at last 100
-                               in the rolling buffer).
+    Returns HTTP 200 in both the ready and no_model states so that Render's
+    health-check (and the CD polling loop) can always read the status.
+    Use the ``status`` field to distinguish between states:
+      • ``"ready"``    — model loaded, predictions are served normally.
+      • ``"no_model"`` — server is up but no Production model is registered yet;
+                         /predict will return 503 until a model is promoted.
     """
     try:
         version = get_model_version()
-    except RuntimeError as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Model is not ready: {exc}",
-        ) from exc
-
-    return {
-        "status": "ready",
-        "model_version": version,
-        "uptime_seconds": round(time.time() - _start_time, 1),
-        "total_predictions": len(_prediction_history),
-    }
+        return {
+            "status": "ready",
+            "model_version": version,
+            "uptime_seconds": round(time.time() - _start_time, 1),
+            "total_predictions": len(_prediction_history),
+        }
+    except RuntimeError:
+        # Model not loaded — server is up but not ready to serve predictions.
+        return {
+            "status": "no_model",
+            "model_version": None,
+            "uptime_seconds": round(time.time() - _start_time, 1),
+            "total_predictions": 0,
+            "detail": (
+                "No Production model found in the MLflow registry. "
+                "Run the training pipeline and promote a model to 'Production'."
+            ),
+        }
 
 
 @app.post(

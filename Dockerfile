@@ -28,9 +28,9 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # =============================================================================
 FROM python:3.11-slim AS runtime
 
-# MLFLOW_TRACKING_URI: default points at the SQLite DB mount; the entrypoint
-# script will override this at runtime with a patched copy of the DB.
-# MLFLOW_DB_PATH:      read by entrypoint.sh to locate the mounted SQLite file.
+# MLFLOW_TRACKING_URI: overridden by entrypoint.sh at runtime with a writable
+#                       copy of the bundled DB (or a freshly created empty one).
+# MLFLOW_DB_PATH:      entrypoint reads this to locate the source DB to copy.
 # PORT:               which port uvicorn listens on (overridable at runtime).
 ENV MLFLOW_TRACKING_URI=sqlite:////app/mlruns.db \
     MLFLOW_DB_PATH=/app/mlruns.db \
@@ -59,20 +59,29 @@ WORKDIR /app
 COPY app/ ./app/
 
 # ---------------------------------------------------------------------------
-# Volumes for runtime data
-# mlruns.db  — SQLite tracking store, mounted as a single file
-# /mlruns    — MLflow artifact directory (model files, plots, etc.)
-# The host paths are controlled via docker-compose.yml or `-v` flags.
+# Bundle the MLflow tracking DB and model artifacts into the image so the
+# container is fully self-contained for cloud deploys (Render, Fly.io, etc.)
+# that have no external volume mounts.
+#
+# mlruns.db  — SQLite tracking store with registered model metadata
+# mlruns/    — MLflow artifact tree (XGBoost model files, plots, etc.)
+#
+# Both files are now tracked by git (removed from .gitignore), so they are
+# available at build time in the Docker context.
+#
+# Note: the entrypoint copies mlruns.db to /tmp/mlruns_patched.db at startup
+# to get a writable copy; the original /app/mlruns.db stays read-only.
 # ---------------------------------------------------------------------------
-VOLUME ["/mlruns"]
+COPY mlruns.db ./mlruns.db
+COPY mlruns/ /mlruns/
 
 # Copy entrypoint script and make it executable (must be done as root,
 # before we switch to the non-root user).
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Ensure the non-root user owns the app directory
-RUN chown -R appuser:appgroup /app
+# Ensure the non-root user owns the app directory and mlruns artifacts
+RUN chown -R appuser:appgroup /app /mlruns
 
 # Switch to non-root user for all subsequent commands
 USER appuser
@@ -81,7 +90,8 @@ USER appuser
 EXPOSE 8000
 
 # ---------------------------------------------------------------------------
-# Entrypoint — patches Windows artifact URIs in mlruns.db, then starts uvicorn.
+# Entrypoint — copies mlruns.db to a writable /tmp location, patches any
+# Windows artifact URIs, then starts uvicorn.
 # Using ENTRYPOINT (not CMD) ensures the patch step always runs on container
 # start, even if the operator passes extra arguments.
 # ---------------------------------------------------------------------------

@@ -50,6 +50,7 @@ MODEL_STAGE: str = os.getenv("MLFLOW_MODEL_STAGE", "Production")
 # ---------------------------------------------------------------------------
 _model: Any | None = None
 _model_version: str | None = None
+_startup_error: str | None = None  # set when model load fails at startup
 
 
 # ---------------------------------------------------------------------------
@@ -212,18 +213,12 @@ def load_model_on_startup() -> None:
     """
     Eagerly load the Production model and populate the module-level cache.
 
-    Call this once from FastAPI's ``@app.on_event("startup")`` handler in
-    main.py so the first real prediction request doesn't pay the cold-start
-    penalty and so startup failures are surfaced immediately (rather than
-    on the first incoming request).
-
-    Raises
-    ------
-    RuntimeError
-        If the model cannot be found or loaded — lets FastAPI abort startup
-        so the server never enters a broken state.
+    Failure is non-fatal: if no Production model is found (e.g. a fresh Render
+    deploy before training has run), a warning is logged and the server starts
+    normally.  Endpoints that need the model (/predict, /health) will return
+    HTTP 503 until a model is available and the container is restarted.
     """
-    global _model, _model_version  # noqa: PLW0603 — intentional module cache
+    global _model, _model_version, _startup_error  # noqa: PLW0603
 
     logger.info(
         "Startup: loading '%s' (stage=%s) from the MLflow Model Registry …",
@@ -231,36 +226,39 @@ def load_model_on_startup() -> None:
         MODEL_STAGE,
     )
 
-    version = _fetch_latest_production_version()
-
-    _model = _load_model()
-    _model_version = version
-
-    logger.info(
-        "Startup complete. Serving model '%s' version '%s'.",
-        MODEL_NAME,
-        _model_version,
-    )
+    try:
+        version = _fetch_latest_production_version()
+        _model = _load_model()
+        _model_version = version
+        logger.info(
+            "Startup complete. Serving model '%s' version '%s'.",
+            MODEL_NAME,
+            _model_version,
+        )
+    except RuntimeError as exc:
+        # Store the error so endpoints can surface it as a 503, but do NOT
+        # re-raise — the server must stay up so /health can be polled and
+        # Render doesn't mark the deploy as permanently failed.
+        _startup_error = str(exc)
+        logger.warning(
+            "Model not loaded at startup (server will return 503 on /predict): %s",
+            _startup_error,
+        )
 
 
 def get_model() -> mlflow.pyfunc.PyFuncModel:
     """
-    Return the cached Production model, loading it on first call if needed.
-
-    Lazy-loading is a fallback for cases where load_model_on_startup() was
-    not called (e.g. unit tests that mock the model at import time).
-
-    Returns
-    -------
-    mlflow.pyfunc.PyFuncModel
-        The in-memory model ready for inference via `.predict()`.
+    Return the cached Production model.
 
     Raises
     ------
     RuntimeError
-        If the model is not cached and cannot be loaded.
+        If the model failed to load at startup or has not yet been loaded.
     """
     global _model, _model_version  # noqa: PLW0603
+
+    if _startup_error is not None and _model is None:
+        raise RuntimeError(_startup_error)
 
     if _model is None:
         logger.warning(
