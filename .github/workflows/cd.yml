@@ -123,9 +123,9 @@ jobs:
         run: |
           HEALTH_URL="${{ secrets.RENDER_APP_URL }}/health"
           echo "Waiting 90s for Render cold start..."
-          sleep 90
+          sleep 180
 
-          MAX_ATTEMPTS=20
+          MAX_ATTEMPTS=10
           SLEEP_SECONDS=30
           attempt=1
 
