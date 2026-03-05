@@ -146,7 +146,3 @@ data/**
 # BUT keep DVC metadata
 !data/**/*.dvc
 !.dvc/
-
-
-mlruns.db
-predictions.db
