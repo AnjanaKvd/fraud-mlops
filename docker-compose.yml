@@ -4,7 +4,7 @@ services:
   # ---------------------------------------------------------------------------
   fraud-api:
     build:
-      context: .          # Build from the repo root (where the Dockerfile lives)
+      context: . # Build from the repo root (where the Dockerfile lives)
       dockerfile: Dockerfile
 
     container_name: fraud-api
@@ -22,6 +22,8 @@ services:
       # artifact URIs inside it, and export a new MLFLOW_TRACKING_URI at runtime.
       - MLFLOW_TRACKING_URI=sqlite:////app/mlruns.db
       - MLFLOW_DB_PATH=/app/mlruns.db
+      # Explicit path so inference_logger always finds the volume-mounted DB
+      - PREDICTIONS_DB_PATH=/app/predictions.db
 
     ports:
       # Map host port 8000 → container port 8000
@@ -39,14 +41,12 @@ services:
       # predictions.db — inference log; must be writable.
       - ./predictions.db:/app/predictions.db
 
-
     # Restart the container automatically unless explicitly stopped
     restart: unless-stopped
 
     # Basic health-check: poll the /health endpoint every 30 s
     healthcheck:
-      test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -1,10 +1,10 @@
-#!/bin/sh
-# entrypoint.sh — handles two deployment scenarios:
+﻿#!/bin/sh
+# entrypoint.sh â€” handles two deployment scenarios:
 #
-#   1. LOCAL / docker-compose  — mlruns.db is volume-mounted from the host
+#   1. LOCAL / docker-compose  â€” mlruns.db is volume-mounted from the host
 #      (Windows). Windows artifact paths are patched to Linux-compatible paths.
 #
-#   2. CLOUD / Render (fresh deploy) — no pre-existing mlruns.db.
+#   2. CLOUD / Render (fresh deploy) â€” no pre-existing mlruns.db.
 #      An empty database is created so MLflow can initialise on first use.
 #      No path patching needed (tracking was never done on Windows in the cloud).
 #
@@ -15,11 +15,11 @@ ORIGINAL_DB="${MLFLOW_DB_PATH:-/app/mlruns.db}"
 PATCHED_DB="/tmp/mlruns_patched.db"
 
 if [ -f "$ORIGINAL_DB" ]; then
-    # ── Case 1: DB exists (local volume mount) ─────────────────────────────
-    echo "[entrypoint] Found $ORIGINAL_DB — copying to $PATCHED_DB …"
+    # â”€â”€ Case 1: DB exists (local volume mount) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    echo "[entrypoint] Found $ORIGINAL_DB â€” copying to $PATCHED_DB â€¦"
     cp "$ORIGINAL_DB" "$PATCHED_DB"
 
-    echo "[entrypoint] Patching Windows artifact URIs in the DB …"
+    echo "[entrypoint] Patching Windows artifact URIs in the DB â€¦"
     python3 - <<'PYEOF'
 import sqlite3, re
 
@@ -30,8 +30,8 @@ c    = conn.cursor()
 # ------------------------------------------------------------------
 # MLflow stores artifact paths in (at least) three different places:
 #
-#   1. runs.artifact_uri          → "file:///F:/Github/.../mlruns"
-#   2. model_versions.source      → "/F:/Github/.../mlruns/..."  ← bare path!
+#   1. runs.artifact_uri          â†’ "file:///F:/Github/.../mlruns"
+#   2. model_versions.source      â†’ "/F:/Github/.../mlruns/..."  â† bare path!
 #   3. experiments.artifact_location (optional, may also be present)
 #
 # The model_versions.source path is what mlflow.pyfunc.load_model()
@@ -43,8 +43,8 @@ def find_win_mlruns_prefix(value):
     Return (old_prefix, new_prefix) if value contains a Windows-style
     mlruns path, otherwise None.
     Handles both:
-      file:///F:/Github/.../mlruns  → file:///mlruns
-      /F:/Github/.../mlruns         → /mlruns
+      file:///F:/Github/.../mlruns  â†’ file:///mlruns
+      /F:/Github/.../mlruns         â†’ /mlruns
     """
     if not value:
         return None
@@ -68,7 +68,7 @@ for run_uuid, uri in c.fetchall():
         old, new = result
         c.execute("UPDATE runs SET artifact_uri=? WHERE run_uuid=?",
                   (uri.replace(old, new), run_uuid))
-        print(f"[patch] runs({run_uuid[:8]}…): {old!r} → {new!r}", flush=True)
+        print(f"[patch] runs({run_uuid[:8]}â€¦): {old!r} â†’ {new!r}", flush=True)
         patched_total += 1
 
 # ---- 2. model_versions.source ------------------------------------
@@ -79,7 +79,7 @@ for name, ver, src in c.fetchall():
         old, new = result
         c.execute("UPDATE model_versions SET source=? WHERE name=? AND version=?",
                   (src.replace(old, new), name, ver))
-        print(f"[patch] model_versions({name} v{ver}): {old!r} → {new!r}", flush=True)
+        print(f"[patch] model_versions({name} v{ver}): {old!r} â†’ {new!r}", flush=True)
         patched_total += 1
 
 # ---- 3. experiments.artifact_location ----------------------------
@@ -90,18 +90,18 @@ for exp_id, loc in c.fetchall():
         old, new = result
         c.execute("UPDATE experiments SET artifact_location=? WHERE experiment_id=?",
                   (loc.replace(old, new), exp_id))
-        print(f"[patch] experiments({exp_id}): {old!r} → {new!r}", flush=True)
+        print(f"[patch] experiments({exp_id}): {old!r} â†’ {new!r}", flush=True)
         patched_total += 1
 
 conn.commit()
 conn.close()
-print(f"[patch] Done — {patched_total} path(s) patched.", flush=True)
+print(f"[patch] Done â€” {patched_total} path(s) patched.", flush=True)
 PYEOF
 
 else
-    # ── Case 2: No DB (fresh cloud / Render deploy) ────────────────────────
+    # â”€â”€ Case 2: No DB (fresh cloud / Render deploy) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     echo "[entrypoint] No mlruns.db found at $ORIGINAL_DB (fresh deploy)."
-    echo "[entrypoint] Creating empty MLflow database at $PATCHED_DB …"
+    echo "[entrypoint] Creating empty MLflow database at $PATCHED_DB â€¦"
     # SQLite creates a valid empty database on connect; MLflow will run its own
     # schema migrations the first time it opens this file.
     python3 -c "import sqlite3; sqlite3.connect('$PATCHED_DB').close()"
@@ -113,5 +113,5 @@ export MLFLOW_TRACKING_URI="sqlite:////$PATCHED_DB"
 echo "[entrypoint] MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_URI"
 
 # Hand off to uvicorn
-echo "[entrypoint] Starting uvicorn on port ${PORT:-8000} …"
+echo "[entrypoint] Starting uvicorn on port ${PORT:-8000} â€¦"
 exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"

@@ -19,7 +19,7 @@ COPY requirements.txt .
 
 # Install all Python dependencies into a dedicated prefix so they can be
 # copied cleanly into the final stage without dragging build tools along.
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install --timeout 120 --retries 5 -r requirements.txt
 
 
 # =============================================================================
