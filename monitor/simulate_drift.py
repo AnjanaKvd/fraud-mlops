@@ -520,7 +520,8 @@ def run_simulation(
         print("    1. Check docker compose logs for startup / model-load errors.")
         print("    2. Try: curl http://localhost:8000/health")
         print(
-            "    3. Try: curl -X POST http://localhost:8000/predict -H 'Content-Type: application/json' -d '{\"V1\":0,...}'"
+            "    3. Try: curl -X POST http://localhost:8000/predict "
+            "-H 'Content-Type: application/json' -d '{\"V1\":0,...}'"
         )
         sys.exit(1)
 
