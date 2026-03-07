@@ -16,14 +16,17 @@ from collections import deque
 from contextlib import asynccontextmanager
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.model_loader import get_model, get_model_version, load_model_on_startup
 from app.schemas import TransactionInput, PredictionOutput
 
 from app.inference_logger import log_prediction
+from monitor.drift_detector import run_drift_detection
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +226,24 @@ async def predict(transaction: TransactionInput) -> PredictionOutput:
     feature_dict = transaction.model_dump()
     input_df = pd.DataFrame([feature_dict])
 
-    # --- 3. Run inference -----------------------------------------------------
+    # --- 2b. Engineer Amount-derived features (required by the v2 model) ------
+    # train_v2.py added two features computed from the *raw* Amount value before
+    # StandardScaler was applied.  We replicate the same formulas here so the
+    # input column set matches the model signature exactly.
+    #
+    #   amount_log    = log1p(Amount)
+    #       Compresses the heavy right skew of transaction amounts.
+    #
+    #   amount_zscore = (Amount - mean) / std(ddof=0)
+    #       For a single-row inference batch, mean=Amount and std≈0, so we use
+    #       a population-style z-score with a small epsilon to avoid division
+    #       by zero.  This mirrors the single-row behaviour from train_v2.py.
+    amount_val = feature_dict["Amount"]
+    input_df["amount_log"] = np.log1p(amount_val)
+    # For a single row: mean == amount_val, std == 0 → zscore == 0.
+    # The epsilon (1e-9) prevents ZeroDivisionError and matches train_v2.py.
+    input_df["amount_zscore"] = (amount_val - amount_val) / (0 + 1e-9)  # = 0.0
+
     try:
         # mlflow.pyfunc models expose .predict() which returns a numpy array
         # or a pandas Series / DataFrame depending on the flavour.
@@ -255,7 +275,7 @@ async def predict(transaction: TransactionInput) -> PredictionOutput:
     result = PredictionOutput(
         fraud_probability=fraud_prob,
         is_fraud=is_fraud,
-        model_version=model_version,
+        model_version=str(model_version),
         # prediction_id and timestamp get auto-populated by PredictionOutput's
         # default_factory fields defined in schemas.py.
     )
@@ -322,3 +342,69 @@ async def metrics() -> dict[str, Any]:
         "fraud_rate": round(sum(fraud_flags) / count, 4),
         "avg_probability": round(sum(probabilities) / count, 4),
     }
+
+
+@app.get(
+    "/monitoring/report",
+    summary="Run drift detection and return JSON summary",
+    tags=["Monitoring"],
+)
+async def get_drift_report(n_recent: int = 500) -> dict[str, Any]:
+    """
+    Run data-drift and prediction-drift detection on the most recent `n_recent`
+    predictions, compared against the reference training data.
+
+    Returns
+    -------
+    dict
+        A JSON summary of the drift detection results, including `drift_share`,
+        `dataset_drift_detected`, and per-feature drift scores.
+    """
+    try:
+        result = run_drift_detection(n_recent=n_recent)
+        return result
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Cannot run drift detection: {exc}"
+        ) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Drift detection failed")
+        raise HTTPException(
+            status_code=500, detail=f"Drift detection error: {str(exc)}"
+        )
+
+
+@app.get(
+    "/monitoring/latest-report",
+    summary="Serve the latest HTML drift report",
+    tags=["Monitoring"],
+)
+async def get_latest_drift_report() -> FileResponse:
+    """
+    Run drift detection (if needed) and return the full Evidently HTML report.
+    This provides a rich visual dashboard of feature distributions.
+    """
+    try:
+        # Run drift detection to ensure a recent report exists
+        result = run_drift_detection(n_recent=500)
+        report_path = result.get("report_html_path")
+
+        if not report_path or not pd.io.common.file_exists(report_path):
+            # Might happen if there were 0 predictions in the DB
+            raise HTTPException(
+                status_code=404,
+                detail="Report could not be generated (e.g., not enough predictions yet).",
+            )
+
+        return FileResponse(
+            report_path,
+            media_type="text/html",
+            filename="drift_report_latest.html",
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to serve latest HTML report")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to load report: {str(exc)}"
+        )
