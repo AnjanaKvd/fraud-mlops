@@ -1,4 +1,4 @@
-# 💳 Fraud Detection MLOps Platform
+# Creditcard Fraud Detection MLOps Platform
 
 [![CI](https://github.com/AnjanaKvd/fraud-mlops/actions/workflows/ci.yml/badge.svg)](https://github.com/AnjanaKvd/fraud-mlops/actions/workflows/ci.yml)
 [![CD](https://github.com/AnjanaKvd/fraud-mlops/actions/workflows/cd.yml/badge.svg)](https://github.com/AnjanaKvd/fraud-mlops/actions/workflows/cd.yml)
@@ -12,11 +12,11 @@
 
 ---
 
-## 🏗️ Architecture System Design
+##  Architecture System Design
 
 ![Architecture](images/architecture.png)
 
-## ✨ Core Features
+##  Core Features
 
 - **Real-Time Inference API**: High-performance RESTful API built with FastAPI for serving real-time fraud predictions.
 - **Experiment Tracking**: Integrated with **MLflow** for robust tracking of hyperparameters, model drift, and versioning.
@@ -25,7 +25,7 @@
 - **Reproducible Pipelines**: Data versioning and completely reproducible model training using **DVC**.
 - **Containerized Environment**: Packaged with **Docker** & **Docker Compose** for seamless deployment across local and cloud environments.
 
-## 🛠️ Tech Stack & Tooling
+##  Tech Stack & Tooling
 
 | Category | Technologies |
 | --- | --- |
@@ -36,7 +36,7 @@
 | **CI/CD** | GitHub Actions |
 | **Language** | Python 3.10+ |
 
-## 🚀 Local Setup & Installation
+##  Local Setup & Installation
 
 Follow these steps to run the pipeline and the API locally:
 
@@ -74,7 +74,7 @@ Follow these steps to run the pipeline and the API locally:
    python train/train_model.py
    ```
 
-## 📡 API Documentation
+##  API Documentation
 
 Base URL: `http://localhost:8000` (or `https://fraud-mlops.onrender.com` for production)
 
@@ -106,7 +106,7 @@ curl -X POST "http://localhost:8000/predict" \
 ```
 *(Prediction `1` signifies Fraud, `0` signifies Legitimate).*
 
-## 📊 Experiment Tracking (MLflow)
+##  Experiment Tracking (MLflow)
 
 All experiments, parameters, and resulting metrics are logged diligently with MLflow.
 Using Kaggle's Credit Card Fraud Dataset (284,807 transactions, highly imbalanced at 0.172% fraud).
@@ -118,7 +118,7 @@ Using Kaggle's Credit Card Fraud Dataset (284,807 transactions, highly imbalance
 ![MLflow UI 1](images/mlflow1.png)
 ![MLflow UI 2](images/mlflow2.png)
 
-## 📉 Drift Monitoring & Retraining
+##  Drift Monitoring & Retraining
 
 We simulate data drift programmatically. When **Evidently AI** detects that over 30% of features have drifted significantly from the baseline distribution, a model retraining pipeline is triggered.
 
@@ -126,7 +126,7 @@ We simulate data drift programmatically. When **Evidently AI** detects that over
 ![Evidently Drift Report 1](images/data-drift1.png)
 ![Evidently Drift Report 2](images/data-drift2.png)
 
-## ⚡ Performance Benchmarks
+##  Performance Benchmarks
 
 Ensuring high throughput and minimum latency is critical.
 
@@ -140,7 +140,7 @@ Ensuring high throughput and minimum latency is critical.
 
 *Note: p95/p99 latency tracking ensures that 99% of our transaction checks complete within strict SLA margins. I will fill in these exact benchmarks once finalized.*
 
-## 📂 Project Structure
+##  Project Structure
 
 ```text
 fraud-mlops/
@@ -159,20 +159,20 @@ fraud-mlops/
 └── requirements.txt        # Python dependencies
 ```
 
-## 🧠 Key Decisions & What I Learned
+##  Key Decisions & What I Learned
 
 - **Choosing XGBoost**: While Random Forests handle imbalanced data decently, XGBoost consistently yielded superior recall and PR-AUC with minimal tuning for this tabular dataset.
 - **Serving Architecture**: I picked FastAPI coupled with Docker over a simple Flask application for its out-of-the-box asynchronous capabilities, which heavily improved baseline theoretical requests per second.
 - **Drift Triggers**: Initially, setting drift sensitivity too high caused unnecessary retrains. Tuning evidently to a 30% feature shift baseline struck a better balance between computational cost and prediction consistency.
 
-## 🔮 Future Improvements
+##  Future Improvements
 
 - **Feature Store Integration**: Integrate `Feast` or `Hopsworks` for online/offline feature retrieval.
 - **Advanced Serving**: Move towards `BentoML` or `Triton Inference Server` to support native batching and framework-agnostic serving.
 - **Shadow Deployments**: Implement A/B testing or model shadowing directly inside the active deployment pipeline.
 
-## 📫 Contact
+##  Contact
 
 - **LinkedIn**: [AnjanaKvd on LinkedIn](https://linkedin.com/in/AnjanaKvd)  <!-- Update with actual link if different -->
 - **GitHub**: [@AnjanaKvd](https://github.com/AnjanaKvd)
-- **Email**: [Your Email Address]
+- **Email**: anjanakavid@gmail.com
