@@ -179,5 +179,24 @@ fraud-mlops/
 
 
 <!-- PORTFOLIO_START -->
-Hiii
+## Fraud Detection MLOps Pipeline
+A brief, 1-2 sentence description of your project goes here. This will be grabbed as the card's main description. Make sure it doesn't start with a #.
+### Tech Stack
+- Python
+- Docker
+- MLflow
+- FastAPI
+- Scikit-learn
+- GitHub Actions
+### Features
+- End-to-end model training pipeline
+- Real-time inference via REST API
+- Automated retraining triggers
+- Data drift monitoring and alerting
+- Production-ready containerization
+### Preview
+![Project Dashboard Screenshot](images/mlflow1.png)
+### Links
+- Live: https://fraud-mlops-demo.herokuapp.com
+- Repo: https://github.com/AnjanaKvd/fraud-mlops
 <!-- PORTFOLIO_END -->
