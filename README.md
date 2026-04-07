@@ -180,7 +180,7 @@ fraud-mlops/
 
 <!-- PORTFOLIO_START -->
 ## Fraud Detection MLOps Pipeline
-A brief, 1-2 sentence description of your project goes here. This will be grabbed as the card's main description. Make sure it doesn't start with a #.
+A brief, 1-2 sentence description of your project goes here. This will be grabbed as the card's main description. Make sure it doesn't start with a.
 ### Tech Stack
 - Python
 - Docker
