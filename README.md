@@ -180,7 +180,7 @@ fraud-mlops/
 
 <!-- PORTFOLIO_START -->
 ## Fraud Detection MLOps Pipeline
-A brief, 1-2 sentence description of your project goes here. This will be grabbed as the card's main description. Make sure it doesn't start with a.
+An end-to-end Machine Learning Operations (MLOps) system designed to detect fraudulent credit card transactions in real-time.
 ### Tech Stack
 - Python
 - Docker
@@ -189,14 +189,15 @@ A brief, 1-2 sentence description of your project goes here. This will be grabbe
 - Scikit-learn
 - GitHub Actions
 ### Features
-- End-to-end model training pipeline
-- Real-time inference via REST API
-- Automated retraining triggers
-- Data drift monitoring and alerting
-- Production-ready containerization
+- High-performance RESTful API built with FastAPI for serving real-time fraud predictions.
+- Integrated with **MLflow** for robust tracking of hyperparameters, model drift, and versioning.
+- Uses **Evidently AI** to automatically trigger alerts and orchestrate retraining when feature drift exceeds 30%.
+- Automated testing and deployment workflows managed with **GitHub Actions**.
+- Data versioning and completely reproducible model training using **DVC**.
+- Packaged with **Docker** & **Docker Compose** for seamless deployment across local and cloud environments.
 ### Preview
 ![Project Dashboard Screenshot](images/mlflow1.png)
 ### Links
-- Live: https://fraud-mlops-demo.herokuapp.com
+- Live: https://fraud-mlops.onrender.com
 - Repo: https://github.com/AnjanaKvd/fraud-mlops
 <!-- PORTFOLIO_END -->
