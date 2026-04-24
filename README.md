@@ -190,11 +190,11 @@ An end-to-end Machine Learning Operations (MLOps) system designed to detect frau
 - GitHub Actions
 ### Features
 - High-performance RESTful API built with FastAPI for serving real-time fraud predictions.
-- Integrated with **MLflow** for robust tracking of hyperparameters, model drift, and versioning.
-- Uses **Evidently AI** to automatically trigger alerts and orchestrate retraining when feature drift exceeds 30%.
-- Automated testing and deployment workflows managed with **GitHub Actions**.
-- Data versioning and completely reproducible model training using **DVC**.
-- Packaged with **Docker** & **Docker Compose** for seamless deployment across local and cloud environments.
+- Integrated with MLflow for robust tracking of hyperparameters, model drift, and versioning.
+- Uses Evidently AI to automatically trigger alerts and orchestrate retraining when feature drift exceeds 30%.
+- Automated testing and deployment workflows managed with GitHub Actions.
+- Data versioning and completely reproducible model training using DVC.
+- Packaged with Docker & Docker Compose for seamless deployment across local and cloud environments.
 ### Preview
 ![Project Dashboard Screenshot](images/mlflow1.png)
 ### Links
